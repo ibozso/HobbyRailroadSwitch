@@ -100,7 +100,7 @@ const char HtmlConfig[] =
 "<body>"\
 "<h2>WiFi configuration</h2>"\
 "<p>You can set WiFi connection</p>"\
-"  <form action=\"config\" method=\"post\">"\
+"  <form action=\"save\" method=\"post\">"\
 "      <b>WiFi SSID:</b>"\
 "      <input type=\"text\" name=\"wifi_ssid\" value=\"#wifi_ssid#\">"\
 "      <p></p>"\
@@ -166,7 +166,6 @@ void RGBLed(bool Blink, uint32_t Color)
 void ShowConfig()
 {
   Serial.println("Pedal configuration:");
-  Serial.println("-------------------");
   Serial.print("WiFi SSID: ");
   Serial.println(WiFiConfiguration.SSID);
   Serial.print("WiFi Password: ");
@@ -181,8 +180,7 @@ void ReadConfigHtml()
 {
   String Html(HtmlConfig);
 
-  Serial.println("ReadConfigHtml");
-  Serial.println("--------------");
+  Serial.println("ReadConfigHtml()");
   Html.replace("#wifi_ssid#", WiFiConfiguration.SSID);
   Html.replace("#wifi_pwd#", WiFiConfiguration.Password);
   WebServer.send(200, "text/html", Html);
@@ -227,6 +225,8 @@ void Switch(bool Direction)
 
 void InitSoftAP(void)
 {
+  String HtmlTemp(HtmlConfig);
+
   Serial.print("WiFi status: SoftAP Connected - IP address: ");
   Serial.println(WiFi.localIP());
   Serial.println("");
@@ -258,7 +258,15 @@ void InitSoftAP(void)
     Switch(false);
     delay(200); 
   });
-  
+
+  WebServer.on("/config", [](){
+    ReadConfigHtml();
+  });
+
+  WebServer.on("/save", [](){
+    WriteConfigHtml();
+  });
+
   WebServer.begin();      
 }
 
@@ -355,7 +363,7 @@ void WiFiLoop(void)
       if (WiFiTarget == WT_SOFTAP)
       {
         Serial.println("WiFi status: Connect start");
-        WiFi.begin("blurryext", ".Bulcsu2001");
+        WiFi.begin(WiFiConfiguration.SSID, WiFiConfiguration.Password);
         StartTime = millis();
         WiFiStatus = WS_SOFTAP_CONNECTING;
       }
@@ -419,8 +427,6 @@ void WiFiLoop(void)
         Serial.println("------------------");
         WiFi.begin();
         WiFi.softAP("RailroadSwitchAP");
-        WebServer.on("/config", ReadConfigHtml);
-        WebServer.begin();
         WiFiStatus = WS_AP_CONNECTTED;
       }
       else
