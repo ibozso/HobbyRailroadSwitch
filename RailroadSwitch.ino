@@ -6,22 +6,27 @@
 #include <EEPROM.h>
 #include <Adafruit_NeoPixel.h>
 #include "WS2812_Definitions.h"
-#include "Crc.h"
+#include "RailroadSwitchCrc.h"
+#include "RailroadSwitchPeripheries.h"
 
-#define NEO_PIN 12
-#define NEO_COUNT 1
+#define BUTTON_PIN                   14u
 
-typedef enum
-{
-  BUTTON_STATE_HIGH,
-  BUTTON_STATE_LOW,
-} tButtonState;
+#define NEO_PIN                      12u
+#define NEO_COUNT                    1u
+
+#define COLOR_BLACK                  0x00000000u
+#define COLOR_RED                    0x00FF0000u
+#define COLOR_GREEN                  0x0000FF00u
+#define COLOR_BLUE                   0x000000FFu
+#define COLOR_ORANGE                 0x00FF8000u
+#define COLOR_CYAN                   0x0000FFFFu
+
+#define C_WIFI_TIMEOUT               5000u
 
 typedef enum
 {
   SWITCH_DIRECTION_LEFT,
   SWITCH_DIRECTION_RIGHT,
-  SWITCH_DIRECTION_,
 } tSwitchDirection;
 
 typedef enum
@@ -46,13 +51,6 @@ typedef enum
   WT_AP,
 } tWiFiTarget;
 
-typedef enum
-{
-  BUTTON_EVENT_IDLE,
-  BUTTON_EVENT_SHORTCLICK,
-  BUTTON_EVENT_LONGCLICK,
-} tButtonEvent;
-
 typedef struct
 {
   char SSID[20];
@@ -73,17 +71,6 @@ const String WiFiStateText[WS_COUNT] =
   "WS_DISCONNECTING",
   "WS_DISCONNECTION_FAILED",
 };
-
-const int ButtonPin = 14;
-
-#define COLOR_BLACK                  0x00000000u
-#define COLOR_RED                    0x00FF0000u
-#define COLOR_GREEN                  0x0000FF00u
-#define COLOR_BLUE                   0x000000FFu
-#define COLOR_ORANGE                 0x00FF8000u
-#define COLOR_CYAN                   0x0000FFFFu
-
-#define C_WIFI_TIMEOUT               5000u
 
 Adafruit_NeoPixel Led = Adafruit_NeoPixel(NEO_COUNT, NEO_PIN, NEO_GRB + NEO_KHZ800);
 Ticker LedTicker;
@@ -222,55 +209,6 @@ void WriteConfigHtml()
   EEPROM.put(0, WiFiConfiguration);
   EEPROM.commit();
   WebServer.send(200, "text/html", HtmlSaved);
-}
-
-/*
- * 
- */
-
-tButtonEvent CheckButtonEvent(void)
-{
-  static tButtonState ButtonState = BUTTON_STATE_HIGH;
-  static long StartTime;
-  long ElapsedTime;
-  tButtonEvent Result = BUTTON_EVENT_IDLE;
-  
-  if (digitalRead(ButtonPin) == LOW)
-  {
-    if (ButtonState == BUTTON_STATE_HIGH)
-    {
-      Serial.println("CheckButton(): ButtonState = BUTTON_STATE_LOW");
-      ButtonState = BUTTON_STATE_LOW;
-      StartTime = millis();
-    }
-  }
-  else
-  {
-    if (ButtonState == BUTTON_STATE_LOW)
-    {
-      Serial.println("CheckButton(): ButtonState = BUTTON_STATE_HIGH");
-      ButtonState = BUTTON_STATE_HIGH;
-      ElapsedTime = millis() - StartTime;
-      Serial.print("CheckButton(): ElapsedTime = ");
-      Serial.println(ElapsedTime);
-
-      if (ElapsedTime > 2000u)
-      {
-        Serial.println("CheckButton(): ButtonEvent = BUTTON_EVENT_LONGCLICK");
-        Result = BUTTON_EVENT_LONGCLICK;
-      }
-      else
-      {
-        if (ElapsedTime > 100u)
-        {
-          Serial.println("CheckButton(): ButtonEvent = BUTTON_EVENT_SHORTCLICK");
-          Result = BUTTON_EVENT_SHORTCLICK;
-        }
-      }
-    }
-  }
-
-  return Result;
 }
 
 /*
@@ -481,18 +419,7 @@ void WiFiLoop(void)
         Serial.println("------------------");
         WiFi.begin();
         WiFi.softAP("RailroadSwitchAP");
-
-        Html.replace("#wifi_ssid#", WiFiConfiguration.SSID);
-        Html.replace("#wifi_pwd#", WiFiConfiguration.Password);
-
-/*        WebServer.send(200, "text/html", Html);*/
-/*
-        WebServer.on("/", [](){
-          WebServer.send(200, "text/html", Html);
-        });
-*/      
-        WebServer.on("/", ReadConfigHtml);
-        WebServer.on("/config", WriteConfigHtml);
+        WebServer.on("/config", ReadConfigHtml);
         WebServer.begin();
         WiFiStatus = WS_AP_CONNECTTED;
       }
@@ -567,7 +494,7 @@ void setup()
   Serial.begin(115200);
   Serial.println("");
   Serial.println("START APP");
-  pinMode(ButtonPin, INPUT);
+  pinMode(BUTTON_PIN, INPUT);
   /* Set up LED as blue */
   Led.begin();
   /* Set up EEPROM */
@@ -605,7 +532,7 @@ void loop()
 {
   tButtonEvent ButtonEvent;
 
-  ButtonEvent = CheckButtonEvent();
+  ButtonEvent = CheckButtonEvent(BUTTON_PIN);
 
   if (ButtonEvent == BUTTON_EVENT_LONGCLICK)
   {
