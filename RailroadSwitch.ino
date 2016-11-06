@@ -1,28 +1,33 @@
+/*
+ * $id:$
+ */
+
 #include "Arduino.h"
 #include "ESP8266WiFi.h"
 #include "ESP8266WebServer.h"
 #include "ESP8266HTTPClient.h"
 #include "EEPROM.h"
 #include "WS2812_Definitions.h"
+#include "RailroadSwitchHtml.h"
 #include "RailroadSwitchCrc.h"
 #include "RailroadSwitchPeripheries.h"
 
 #define WIFI_TIMEOUT                 5000u
+#define SHOW_STATUS_DELAY            1000u
 
 typedef enum
 {
   WS_IDLE,
   WS_SOFTAP_START,
   WS_SOFTAP_CONNECTING,
-  WS_SOFTAP_CONNECTION_FAILED,
   WS_SOFTAP_CONNECTTED,
   WS_AP_START,
   WS_AP_CONNECTTED,
   WS_DISCONNECT_START,
   WS_DISCONNECTING,
-  WS_DISCONNECTION_FAILED,
-  WS_COUNT,
-} tWiFiState;
+  WS_FAILED,
+  WS_NUMBER,
+} tWiFiStatus;
 
 typedef enum
 {
@@ -38,71 +43,22 @@ typedef struct
   unsigned char CRC;
 } tWiFiConfiguration;
 
-const String WiFiStateText[WS_COUNT] =
+const String WiFiStatusLabels[WS_NUMBER] =
 {
   "WS_IDLE",
   "WS_SOFTAP_START",
   "WS_SOFTAP_CONNECTING",
-  "WS_SOFTAP_CONNECTION_FAILED",
   "WS_SOFTAP_CONNECTTED",
   "WS_AP_START",
   "WS_AP_CONNECTTED",
   "WS_DISCONNECT_START",
   "WS_DISCONNECTING",
-  "WS_DISCONNECTION_FAILED",
+  "WS_FAILED",
 };
 
 ESP8266WebServer WebServer(80);
 tWiFiConfiguration WiFiConfiguration;
 tWiFiTarget WiFiTarget = WT_IDLE;
-
-const char HtmlControl[] =
-  "<h1>Z&eacutemans Railroad switch #50</h1>"\
-  "<p><a href=\"socket1On\"><button>LEFT</button></a>&nbsp;<a href=\"socket1Off\"><button>RIGHT</button></a></p>";
-
-const char HtmlConfig[] =
-  "<html>"\
-  "<head>"\
-  "   <meta http-equiv=\"Content-Type\" content=\"text/html; charset=windows-1252\">"\
-  "   <meta name=\"viewport\" content=\"width=device-width, user-scalable=no\">"\
-  "   <title>Test input text in table</title>"\
-  "   <style type=\"text/css\">      "\
-  "      input {width: 100%; height: 30px; font-family: Sans-serif; font-size: 1em}"\
-  "      button {width: 100%; height: 50px; font-family: Sans-serif; font-size: 1em}"\
-  "      h2 {font-family: Sans-serif}"\
-  "      body {font-family: Sans-serif}"\
-  "   </style>"\
-  "</head>"\
-  "<body>"\
-  "<h2>WiFi configuration</h2>"\
-  "<p>You can set WiFi connection</p>"\
-  "  <form action=\"save\" method=\"post\">"\
-  "      <b>WiFi SSID:</b>"\
-  "      <input type=\"text\" name=\"wifi_ssid\" value=\"#wifi_ssid#\">"\
-  "      <p></p>"\
-  "      <b>WiFi Password:</b>"\
-  "      <input type=\"password\" name=\"wifi_pwd\" value=\"#wifi_pwd#\">"\
-  "      <p></p>"\
-  "      <button type=\"submit\">Save</button>"\
-  "  </form>"\
-  "</body>"\
-  "</html>";
-
-const char HtmlSaved[] =
-  "<html>"\
-  "<head>"\
-  "   <meta http-equiv=\"Content-Type\" content=\"text/html; charset=windows-1252\">"\
-  "   <meta name=\"viewport\" content=\"width=device-width, user-scalable=no\">"\
-  "   <title>Test input text in table</title>"\
-  "   <style type=\"text/css\">      "\
-  "      h2 {font-family: Sans-serif}"\
-  "      body {font-family: Sans-serif}"\
-  "   </style>"\
-  "</head>"\
-  "<body>"\
-  "<h2>Configuration is saved</h2>"\
-  "</body>"\
-  "</html>";
 
 /*
  *
@@ -123,12 +79,16 @@ void ShowConfig()
 
 void ReadConfigHtml()
 {
-  String Html(HtmlConfig);
+  String HtmlHead(HTML_HEAD);
+  String HtmlConfig(HTML_CONFIG);
 
   Serial.println("*** ReadConfigHtml()");
-  Html.replace("#wifi_ssid#", WiFiConfiguration.SSID);
-  Html.replace("#wifi_pwd#", WiFiConfiguration.Password);
-  WebServer.send(200, "text/html", Html);
+  HtmlHead.replace("#title#", HTML_TITLE_CONFIG);
+  HtmlConfig.replace("#head#", HtmlHead);
+  HtmlConfig.replace("#title#", HTML_TITLE_CONFIG);
+  HtmlConfig.replace("#wifi_ssid#", WiFiConfiguration.SSID);
+  HtmlConfig.replace("#wifi_pwd#", WiFiConfiguration.Password);
+  WebServer.send(200u, "text/html", HtmlConfig);
 }
 
 /*
@@ -137,6 +97,9 @@ void ReadConfigHtml()
 
 void WriteConfigHtml()
 {
+  String HtmlHead(HTML_HEAD);
+  String HtmlSaved(HTML_SAVED);
+
   Serial.println("*** WriteConfigHtml()");
 
   if (WebServer.hasArg("wifi_ssid"))
@@ -151,9 +114,28 @@ void WriteConfigHtml()
 
   ShowConfig();
   WiFiConfiguration.CRC = CalcCRC(0xFF, &(WiFiConfiguration.SSID[0u]), sizeof(WiFiConfiguration) - 1u);
-  EEPROM.put(0, WiFiConfiguration);
+  EEPROM.put(0u, WiFiConfiguration);
   EEPROM.commit();
-  WebServer.send(200, "text/html", HtmlSaved);
+  HtmlHead.replace("#title#", HTML_TITLE_CONFIG);
+  HtmlSaved.replace("#head#", HtmlHead);
+  HtmlSaved.replace("#title#", HTML_TITLE_CONFIG);
+  WebServer.send(200u, "text/html", HtmlSaved);
+  WiFiTarget = WT_SOFTAP;
+}
+
+/*
+ *
+ */
+
+void HandleRoot(void)
+{
+  String HtmlHead(HTML_HEAD);
+  String HtmlControl(HTML_CONTROL);
+  
+  HtmlHead.replace("#title#", HTML_TITLE_CONTROL);
+  HtmlControl.replace("#head#", HtmlHead);
+  HtmlControl.replace("#title#", HTML_TITLE_CONTROL);
+  WebServer.send(200, "text/html", HtmlControl);
 }
 
 /*
@@ -162,10 +144,13 @@ void WriteConfigHtml()
 
 void Switch(bool Direction)
 {
+  String HtmlHead(HTML_HEAD);
+  String HtmlControl(HTML_CONTROL);
+
   Serial.println("*** Switch()");
   Serial.print("Direction = ");
   Serial.println(Direction);
-  
+
   if (Direction)
   {
     Switch(0u, SWITCH_DIRECTION_LEFT);
@@ -174,104 +159,103 @@ void Switch(bool Direction)
   {
     Switch(0u, SWITCH_DIRECTION_RIGHT);
   }
+
+  HtmlHead.replace("#title#", HTML_TITLE_CONTROL);
+  HtmlControl.replace("#head#", HtmlHead);
+  HtmlControl.replace("#title#", HTML_TITLE_CONTROL);
+  WebServer.send(200u, "text/html", HtmlControl);
 }
 
 /*
  * \brief Initialise the webserver
  */
 
-void InitSoftAP(void)
+void WebServerInit(void)
 {
-  String HtmlTemp(HtmlConfig);
+  static bool InitDone = false;
 
   Serial.println("*** InitSoftAP()");
 
-  WebServer.on("/", [](){
-    WebServer.send(200, "text/html", HtmlControl);
-  });
+  if (!InitDone)
+  {
+    InitDone = true;
 
-  WebServer.on("/socket1On", [](){
-    WebServer.send(200, "text/html", HtmlControl);
-    Switch(true);
-    delay(200);
-  });
+    WebServer.on("/", [](){
+      HandleRoot();
+    });
 
-  WebServer.on("/socket1Off", [](){
-    WebServer.send(200, "text/html", HtmlControl);
-    Switch(false);
-    delay(200);
-  });
+    WebServer.on("/socket1On", [](){
+      Switch(true);
+    });
 
-  WebServer.on("/socket2On", [](){
-    WebServer.send(200, "text/html", HtmlControl);
-    Switch(true);
-    delay(200);
-  });
+    WebServer.on("/socket1Off", [](){
+      Switch(false);
+    });
 
-  WebServer.on("/socket2Off", [](){
-    WebServer.send(200, "text/html", HtmlControl);
-    Switch(false);
-    delay(200);
-  });
+    WebServer.on("/config", [](){
+      ReadConfigHtml();
+    });
 
-  WebServer.on("/config", [](){
-    ReadConfigHtml();
-  });
+    WebServer.on("/save", [](){
+      WriteConfigHtml();
+    });
 
-  WebServer.on("/save", [](){
-    WriteConfigHtml();
-  });
-
-  WebServer.begin();
+    WebServer.begin();
+  }
 }
 
 /*
  *
  */
 
-void ShowStatus(int WiFiStatus)
+void ShowStatus(unsigned int WiFiStatus)
 {
-  static long DisplayTime = 0u;
+  static unsigned long DisplayTime = 0u;
+  static unsigned int WiFiStatusRef = WS_NUMBER;
 
-  if ((millis() - DisplayTime) > 1000u)
+  if ((millis() - DisplayTime) > SHOW_STATUS_DELAY)
   {
     DisplayTime = millis();
     Serial.print("WiFi status: ");
-    Serial.println(WiFiStateText[WiFiStatus]);
+    Serial.println(WiFiStatusLabels[WiFiStatus]);
   }
 
-  switch (WiFiStatus)
+  if (WiFiStatusRef != WiFiStatus)
   {
-    case WS_IDLE:
+    WiFiStatusRef = WiFiStatus;
+    
+    switch (WiFiStatus)
     {
-      NeoPixelSet(false, COLOR_ORANGE);
-      break;
-    }
-    case WS_SOFTAP_START:
-    case WS_SOFTAP_CONNECTING:
-    case WS_SOFTAP_CONNECTION_FAILED:
-    case WS_AP_START:
-    case WS_DISCONNECT_START:
-    case WS_DISCONNECTING:
-    case WS_DISCONNECTION_FAILED:
-    {
-      NeoPixelSet(true, COLOR_ORANGE);
-      break;
-    }
-    case WS_SOFTAP_CONNECTTED:
-    {
-      NeoPixelSet(false, COLOR_GREEN);
-      break;
-    }
-    case WS_AP_CONNECTTED:
-    {
-      NeoPixelSet(false, COLOR_BLUE);
-      break;
-    }
-    default:
-    {
-      NeoPixelSet(true, COLOR_RED);
-      break;
+      case WS_IDLE:
+      {
+        NeoPixelSet(false, COLOR_ORANGE);
+        break;
+      }
+      case WS_SOFTAP_START:
+      case WS_SOFTAP_CONNECTING:
+      case WS_AP_START:
+      case WS_DISCONNECT_START:
+      case WS_DISCONNECTING:
+      {
+        NeoPixelSet(true, COLOR_ORANGE);
+        break;
+      }
+      case WS_SOFTAP_CONNECTTED:
+      {
+        NeoPixelSet(false, COLOR_GREEN);
+        break;
+      }
+      case WS_AP_CONNECTTED:
+      {
+        NeoPixelSet(false, COLOR_BLUE);
+        break;
+      }
+      case WS_FAILED:
+      default:
+      {
+        NeoPixelSet(true, COLOR_RED);
+        break;
+      }
     }
   }
 }
@@ -282,10 +266,9 @@ void ShowStatus(int WiFiStatus)
 
 void WiFiControl(void)
 {
-  static int WiFiStatus = WS_IDLE;
-  static long StartTime;
+  static unsigned int WiFiStatus = WS_IDLE;
+  static unsigned long StartTime;
   unsigned long ElapsedTime;
-  String Html(HtmlConfig);
 
   switch (WiFiStatus)
   {
@@ -337,23 +320,24 @@ void WiFiControl(void)
         {
           Serial.print("SoftAP Connected - IP address: ");
           Serial.println(WiFi.localIP());
-          Serial.println("");
-          InitSoftAP();
+          WebServerInit();
           WiFiStatus = WS_SOFTAP_CONNECTTED;
         }
         else
         {
+          ElapsedTime = millis() - StartTime;
           Serial.print("WiFi status: ");
           Serial.println(ElapsedTime);
-          ElapsedTime = millis() - StartTime;
 
           if (ElapsedTime > WIFI_TIMEOUT)
           {
             Serial.println("WiFi status: Unable to connect");
-            WiFiStatus = WS_SOFTAP_CONNECTION_FAILED;
+            WiFiTarget = WT_AP;
           }
-
-          delay(500);
+          else
+          {
+            delay(500);
+          }
         }
       }
       else
@@ -365,13 +349,15 @@ void WiFiControl(void)
     }
     case WS_SOFTAP_CONNECTTED:
     {
-      if (WiFiTarget != WT_SOFTAP)
+      if (WiFiTarget == WT_SOFTAP)
       {
-        Serial.println("WiFi status: Disconnect start");
+        WebServer.handleClient();
+      }
+      else
+      {
         WiFiStatus = WS_DISCONNECT_START;
       }
 
-      WebServer.handleClient();
       break;
     }
     /* AP CONNECTION */
@@ -379,12 +365,11 @@ void WiFiControl(void)
     {
       if (WiFiTarget == WT_AP)
       {
-        Serial.println("WiFi status: Connect start");
         Serial.print("WiFi status: AP Connected - IP address: ");
         Serial.println(WiFi.softAPIP());
-        Serial.println("------------------");
         WiFi.begin();
         WiFi.softAP("RailroadSwitchAP");
+        WebServerInit();
         WiFiStatus = WS_AP_CONNECTTED;
       }
       else
@@ -396,13 +381,15 @@ void WiFiControl(void)
     }
     case WS_AP_CONNECTTED:
     {
-      if (WiFiTarget != WT_AP)
+      if (WiFiTarget == WT_AP)
       {
-        Serial.println("WiFi status: Disconnect start");
+        WebServer.handleClient();
+      }
+      else
+      {
         WiFiStatus = WS_DISCONNECT_START;
       }
 
-      WebServer.handleClient();
       break;
     }
     /* DISCONNECT */
@@ -430,7 +417,7 @@ void WiFiControl(void)
         if (ElapsedTime > (WIFI_TIMEOUT))
         {
           Serial.println("WiFi status: Unable to disconnect");
-          WiFiStatus = WS_DISCONNECTION_FAILED;
+          WiFiStatus = WS_FAILED;
         }
 
         delay(500);
@@ -456,24 +443,21 @@ void setup()
   unsigned char CRC;
 
   Serial.begin(115200);
-  Serial.println("");
-  Serial.println("START APP");
+  Serial.println("*** setup()");
   SwitchInit();
+  NeoPixelInit();
   /* Set up EEPROM */
   EEPROM.begin(256);
   EEPROM.get(0, WiFiConfiguration);
   ShowConfig();
   CRC = CalcCRC(0xFF, &(WiFiConfiguration.SSID[0u]), sizeof(WiFiConfiguration) - 1u);
-  Serial.print("START APP: CRC = ");
-  Serial.println(CRC);
-  NeoPixelInit();
 
   if (WiFiConfiguration.CRC != CRC)
   {
-    Serial.println("START APP: Invalid CRC");
-    WiFiConfiguration.SSID[0] = 0;
-    WiFiConfiguration.Password[0] = 0;
-    WiFiConfiguration.CRC = CalcCRC(0xFF, &(WiFiConfiguration.SSID[0u]), sizeof(WiFiConfiguration) - 1u);
+    Serial.println("setup(): Invalid CRC");
+    WiFiConfiguration.SSID[0u] = 0;
+    WiFiConfiguration.Password[0u] = 0;
+    WiFiConfiguration.CRC = CalcCRC(0xFFu, &(WiFiConfiguration.SSID[0u]), sizeof(WiFiConfiguration) - 1u);
     ShowConfig();
     EEPROM.put(0u, WiFiConfiguration);
     EEPROM.commit();
@@ -510,4 +494,3 @@ void loop()
   WiFiControl();
   SwitchControl();
 }
-
