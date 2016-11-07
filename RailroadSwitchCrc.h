@@ -1,3 +1,7 @@
+/*
+ *
+ */
+
 #ifndef _RAILROAD_SWITCH_CRC_H_
 #define _RAILROAD_SWITCH_CRC_H_
 

@@ -1,3 +1,7 @@
+/*
+ *
+ */
+
 #ifndef _RAILROAD_SWITCH_PERIPHERIES_H_
 #define _RAILROAD_SWITCH_PERIPHERIES_H_
 
@@ -17,16 +21,17 @@ typedef enum
 
 typedef enum 
 { 
-  SWITCH_DIRECTION_LEFT, 
-  SWITCH_DIRECTION_RIGHT, 
-  SWITCH_DIRECTION_IDLE, 
+  SWITCH_DIRECTION_LEFT,
+  SWITCH_DIRECTION_RIGHT,
+  SWITCH_DIRECTION_NEUTRAL,
+  SWITCH_DIRECTION_NUMBER,
 } tSwitchDirection; 
 
-extern void SwitchInit(void);
-extern void Switch(unsigned int Id, tSwitchDirection Direction);
+extern void InitSwitch(void);
+extern void SwitchCommand(unsigned int Id, tSwitchDirection Direction);
 extern void SwitchControl(void);
-extern void NeoPixelInit(void);
-extern void NeoPixelSet(bool Blink, unsigned int Color);
+extern void InitNeoPixel(void);
+extern void SetNeoPixel(bool Blink, unsigned int Color);
 extern tButtonEvent ButtonMonitor(void);
 
 #endif

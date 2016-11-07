@@ -1,12 +1,19 @@
+/*
+ *
+ */
+
 #ifndef _RAILROAD_SWITCH_HTML_H_
 #define _RAILROAD_SWITCH_HTML_H_
 
 #define HTML_TITLE_CONFIG "WiFi configuration"
 #define HTML_TITLE_CONTROL "Railroad switch"
+#define HTML_URI_LEFT "/socket1left"
+#define HTML_URI_RIGHT "/socket1right"
 
 #define HTML_HEAD \
   "<head>" \
   "  <title>#title#</title>" \
+  "  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">" \
   "  <style type=\"text/css\">" \
   "    body {font-family: Sans-serif}" \
   "    label.fix {display :inline-block; float: clear; padding-top: 5px; text-align: right; width: 140px;}" \
@@ -53,7 +60,7 @@
   "#head#" \
   "<body>" \
   "  <h2>#title#</h2>" \
-  "  <p><a href=\"socket1On\"><button>LEFT</button></a>&nbsp;<a href=\"socket1Off\"><button>RIGHT</button></a></p>" \
+  "  <p><a href=\"socket1left\"><button>LEFT</button></a>&nbsp;<a href=\"socket1right\"><button>RIGHT</button></a></p>" \
   "</body>" \
   "</html>"
 

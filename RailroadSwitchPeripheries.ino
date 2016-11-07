@@ -1,3 +1,7 @@
+/*
+ *
+ */
+
 #include "RailroadSwitchPeripheries.h"
 #include "Arduino.h"
 #include "Adafruit_NeoPixel.h"
@@ -24,19 +28,23 @@ Ticker NeoPixelTicker;
 unsigned long PixelColor = COLOR_BLACK;
 bool PixelBlink = false;
 unsigned long ActiveTime = 0u;
-tSwitchDirection SwitchDirection = SWITCH_DIRECTION_IDLE;
+tSwitchDirection SwitchDirection = SWITCH_DIRECTION_NEUTRAL;
 
-static void NeoPixelControl(void);
+static void ControlNeoPixel(void);
 
 /*
  *
  */
 
-void Switch(unsigned int Id, tSwitchDirection Direction)
+void SwitchCommand(unsigned int Id, tSwitchDirection Direction)
 {
   SwitchDirection = Direction;
 
-  if (Direction < SWITCH_DIRECTION_IDLE)
+  Serial.println("*** SwitchDirection()");
+  Serial.print("Direction = ");
+  Serial.println(Direction);
+
+  if (Direction < SWITCH_DIRECTION_NEUTRAL)
   {
     ActiveTime = millis() + C_ELAPSED_TIME_SWITCH;
   }
@@ -50,7 +58,7 @@ void Switch(unsigned int Id, tSwitchDirection Direction)
  *
  */
 
-void SwitchInit(void)
+void InitSwitch(void)
 {
   pinMode(BUTTON_PIN, INPUT);
   pinMode(RELAY_CONTROL_PIN, OUTPUT);
@@ -88,18 +96,18 @@ void SwitchControl(void)
  *
  */
 
-void NeoPixelInit(void)
+void InitNeoPixel(void)
 {
   NeoPixel.begin();
-  NeoPixelTicker.attach(0.25, NeoPixelControl);
-  NeoPixelSet(false, COLOR_BLACK);
+  NeoPixelTicker.attach(0.25, ControlNeoPixel);
+  SetNeoPixel(false, COLOR_BLACK);
 }
 
 /*
  *
  */
 
-static void NeoPixelControl(void)
+static void ControlNeoPixel(void)
 {
   static bool NeoPixelState = false;
 
@@ -120,7 +128,7 @@ static void NeoPixelControl(void)
  *
  */
 
-void NeoPixelSet(bool Blink, unsigned int Color)
+void SetNeoPixel(bool Blink, unsigned int Color)
 {
   PixelBlink = Blink;
   PixelColor = Color;
