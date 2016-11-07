@@ -1,5 +1,5 @@
 /*
- * $id:$
+ *
  */
 
 #include "Arduino.h"
@@ -81,7 +81,7 @@ void ReadConfigHtml()
 {
   String HtmlHead(HTML_HEAD);
   String HtmlConfig(HTML_CONFIG);
-
+  
   Serial.println("*** ReadConfigHtml()");
   HtmlHead.replace("#title#", HTML_TITLE_CONFIG);
   HtmlConfig.replace("#head#", HtmlHead);
@@ -127,37 +127,25 @@ void WriteConfigHtml()
  *
  */
 
-void HandleRoot(void)
-{
-  String HtmlHead(HTML_HEAD);
-  String HtmlControl(HTML_CONTROL);
-  
-  HtmlHead.replace("#title#", HTML_TITLE_CONTROL);
-  HtmlControl.replace("#head#", HtmlHead);
-  HtmlControl.replace("#title#", HTML_TITLE_CONTROL);
-  WebServer.send(200, "text/html", HtmlControl);
-}
-
-/*
- *
- */
-
-void Switch(bool Direction)
+void Switch(void)
 {
   String HtmlHead(HTML_HEAD);
   String HtmlControl(HTML_CONTROL);
 
   Serial.println("*** Switch()");
-  Serial.print("Direction = ");
-  Serial.println(Direction);
+  Serial.print("WebServer.uri = ");
+  Serial.println(WebServer.uri());
 
-  if (Direction)
+  if (WebServer.uri() == HTML_URI_LEFT)
   {
-    Switch(0u, SWITCH_DIRECTION_LEFT);
+    SwitchCommand(0u, SWITCH_DIRECTION_LEFT);
   }
   else
   {
-    Switch(0u, SWITCH_DIRECTION_RIGHT);
+    if (WebServer.uri() == HTML_URI_RIGHT)
+    {
+      SwitchCommand(0u, SWITCH_DIRECTION_RIGHT);
+    }
   }
 
   HtmlHead.replace("#title#", HTML_TITLE_CONTROL);
@@ -179,27 +167,11 @@ void WebServerInit(void)
   if (!InitDone)
   {
     InitDone = true;
-
-    WebServer.on("/", [](){
-      HandleRoot();
-    });
-
-    WebServer.on("/socket1On", [](){
-      Switch(true);
-    });
-
-    WebServer.on("/socket1Off", [](){
-      Switch(false);
-    });
-
-    WebServer.on("/config", [](){
-      ReadConfigHtml();
-    });
-
-    WebServer.on("/save", [](){
-      WriteConfigHtml();
-    });
-
+    WebServer.on("/", Switch);
+    WebServer.on(HTML_URI_LEFT, Switch);
+    WebServer.on(HTML_URI_RIGHT, Switch);
+    WebServer.on("/config", ReadConfigHtml);
+    WebServer.on("/save", WriteConfigHtml);
     WebServer.begin();
   }
 }
@@ -228,7 +200,7 @@ void ShowStatus(unsigned int WiFiStatus)
     {
       case WS_IDLE:
       {
-        NeoPixelSet(false, COLOR_ORANGE);
+        SetNeoPixel(false, COLOR_ORANGE);
         break;
       }
       case WS_SOFTAP_START:
@@ -237,23 +209,23 @@ void ShowStatus(unsigned int WiFiStatus)
       case WS_DISCONNECT_START:
       case WS_DISCONNECTING:
       {
-        NeoPixelSet(true, COLOR_ORANGE);
+        SetNeoPixel(true, COLOR_ORANGE);
         break;
       }
       case WS_SOFTAP_CONNECTTED:
       {
-        NeoPixelSet(false, COLOR_GREEN);
+        SetNeoPixel(false, COLOR_GREEN);
         break;
       }
       case WS_AP_CONNECTTED:
       {
-        NeoPixelSet(false, COLOR_BLUE);
+        SetNeoPixel(false, COLOR_BLUE);
         break;
       }
       case WS_FAILED:
       default:
       {
-        NeoPixelSet(true, COLOR_RED);
+        SetNeoPixel(true, COLOR_RED);
         break;
       }
     }
@@ -274,23 +246,19 @@ void WiFiControl(void)
   {
     case WS_IDLE:
     {
-      switch (WiFiTarget)
+      if (WiFiTarget == WT_SOFTAP)
       {
-        case WT_SOFTAP:
-        {
-          WiFiStatus = WS_SOFTAP_START;
-          break;
-        }
-        case WT_AP:
+        WiFiStatus = WS_SOFTAP_START;
+      }
+      else
+      {
+        if (WiFiTarget == WT_AP)
         {
           WiFiStatus = WS_AP_START;
-          break;
         }
-        case WT_IDLE:
-        default:
+        else
         {
           WiFiStatus = WS_DISCONNECT_START;
-          break;
         }
       }
 
@@ -444,8 +412,8 @@ void setup()
 
   Serial.begin(115200);
   Serial.println("*** setup()");
-  SwitchInit();
-  NeoPixelInit();
+  InitSwitch();
+  InitNeoPixel();
   /* Set up EEPROM */
   EEPROM.begin(256);
   EEPROM.get(0, WiFiConfiguration);
