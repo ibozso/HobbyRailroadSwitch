@@ -18,7 +18,8 @@
   "    body {font-family: Sans-serif}" \
   "    label.fix {display :inline-block; float: clear; padding-top: 5px; text-align: right; width: 140px;}" \
   "    input {position: relative; width: 200px; height: 30px; font-family: Sans-serif; font-size: 1em}" \
-  "    button {width: 100px; height: 30px; font-family: Sans-serif; font-size: 1em}" \
+  "    button.normal {width: 100px; height: 30px; font-family: Sans-serif; font-size: 1em}" \
+  "    button.control {width: 100%; height: 60px; font-family: Sans-serif; font-size: 1em}" \
   "  </style>" \
   "</head>"
 
@@ -37,7 +38,7 @@
   "      <input type=\"password\" name=\"wifi_pwd\" id=\"password\"value=\"#wifi_pwd#\">" \
   "    </p>" \
   "    <br>" \
-  "    <button type=\"submit\">Save</button>" \
+  "    <button class=\"normal\" type=\"submit\">Save</button>" \
   "  </form>" \
   "</body>" \
   "</html>"
@@ -50,7 +51,7 @@
   "  <form action=\"\" method=\"post\">" \
   "    <p>Configuration is saved</p>" \
   "    <br>" \
-  "    <button type=\"submit\">Ok</button>" \
+  "    <button class=\"normal\" type=\"submit\">Ok</button>" \
   "  </form>" \
   "</body>" \
   "</html>"
@@ -60,7 +61,7 @@
   "#head#" \
   "<body>" \
   "  <h2>#title#</h2>" \
-  "  <p><a href=\"socket1left\"><button>LEFT</button></a>&nbsp;<a href=\"socket1right\"><button>RIGHT</button></a></p>" \
+  "  <p><a href=\"socket1left\"><button class=\"control\">LEFT</button></a>&nbsp;<a href=\"socket1right\"><button class=\"control\">RIGHT</button></a></p>" \
   "</body>" \
   "</html>"
 
