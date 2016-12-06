@@ -71,17 +71,19 @@ void InitSwitch(void)
 
 void SwitchControl(void)
 {
-  if ((ActiveTime - millis()) > 0)
+  if (ActiveTime >= millis())
   {
     /* Keep the switch powered */
     digitalWrite(RELAY_CONTROL_PIN, HIGH);
 
     if (SwitchDirection == SWITCH_DIRECTION_LEFT)
     {
+      Serial.println("*** SwitchControl() - RELAY_SWITCH_PIN, HIGH");
       digitalWrite(RELAY_SWITCH_PIN, HIGH);
     }
     else
     {
+      Serial.println("*** SwitchControl() - RELAY_SWITCH_PIN, LOW");
       digitalWrite(RELAY_SWITCH_PIN, LOW);
     }
   }
@@ -145,7 +147,7 @@ tButtonEvent ButtonMonitor(void)
   unsigned long ElapsedTime;
   tButtonEvent Result = BUTTON_EVENT_IDLE;
 
-  if (digitalRead(BUTTON_PIN) == LOW)
+  if (digitalRead(BUTTON_PIN) == HIGH)
   {
     if (ButtonState == BUTTON_STATE_HIGH)
     {
